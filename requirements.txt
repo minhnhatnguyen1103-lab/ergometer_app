@@ -1,0 +1,11 @@
+# Hiện tại (giai đoạn config + patient + hr_target) KHÔNG cần cài gì cả —
+# 3 module này chỉ dùng thư viện chuẩn có sẵn trong Python.
+#
+# Các dòng dưới đây sẽ được thêm khi bắt đầu viết UI (PyQt6) và Signal layer.
+# Bỏ dấu # để kích hoạt khi tới lúc cần, hoặc để Claude thêm giúp sau.
+
+# PyQt6
+# pyqtgraph
+# scipy
+# numpy
+# pyserial
