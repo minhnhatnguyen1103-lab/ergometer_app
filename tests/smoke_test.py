@@ -33,9 +33,10 @@ def main():
         sex=Sex.MALE,
         height_cm=170,
         weight_kg=65,
-        moderate_vigorous_days_per_week=4,
+        vigorous_days_per_week=3,
+        vigorous_min_per_day=30,
     )
-    print(f"Patient demo: HRmax = {patient.hr_max} bpm | nhom IPAQ = {patient.ipaq_activity_level.value}")
+    print(f"Patient demo: HRmax = {patient.hr_max} bpm | MVPA = {patient.mvpa_min_per_week} phut/tuan | nhom IPAQ = {patient.ipaq_activity_level.value}")
 
     # Giả lập đã đo HR_rest xong
     patient.apply_hr_rest(72)

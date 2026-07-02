@@ -13,9 +13,12 @@ tìm khắp project.
 KARVONEN_LOW_PCT = 0.60   # 60% HRR
 KARVONEN_HIGH_PCT = 0.80  # 80% HRR
 
-# --- Phân loại IPAQ/ACSM rút gọn ---
-IPAQ_ACTIVE_DAYS_THRESHOLD = 3        # >=3 ngày/tuần tập vừa-mạnh => Active
-HR_REST_ACTIVE_THRESHOLD_BPM = 70     # HR_rest <=70 => gợi ý Active (cross-check)
+# --- Phân loại IPAQ-SF (Craig et al. 2003) rút gọn: chỉ domain vigorous + moderate ---
+# Nguồn: WHO/ACSM physical activity guideline - dung trong nhieu nghien cuu lam sang
+# ap dung IPAQ-SF (vd. dichotomization method cho MVPA-minutes/week)
+MVPA_ACTIVE_THRESHOLD_MIN_PER_WEEK = 150   # >=150 phut/tuan (vua+manh cong lai) => Active
+VIGOROUS_ACTIVE_THRESHOLD_MIN_PER_WEEK = 75  # hoac >=75 phut/tuan rieng cuong do manh => Active
+HR_REST_ACTIVE_THRESHOLD_BPM = 70     # HR_rest <=70 => goi y Active (cross-check)
 
 # --- Timeline session MICT (đơn vị: giây) ---
 WARMUP_DURATION_SEC = 5 * 60
