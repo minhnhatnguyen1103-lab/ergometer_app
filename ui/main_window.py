@@ -1,31 +1,30 @@
 """
 ui/main_window.py
 -------------------
-Cửa sổ chính của app. Dùng QStackedWidget để chứa nhiều màn hình
-(view) và chuyển đổi giữa chúng — giống như "chuyển tab" nhưng
-người dùng không thấy tab, chỉ thấy nội dung đổi.
+Cua so chinh cua app. Dung QStackedWidget de chua nhieu man hinh
+(view) va chuyen doi giua chung.
 
-Hiện tại chỉ có 1 màn hình (ModeSelectView). Khi PatientPanel,
-HrRestView... được viết xong, chúng sẽ được add vào đây và
-MainWindow sẽ quyết định lúc nào hiện màn hình nào.
+Da noi xong: ModeSelectView -> EcgRecordingView (mode "Do ECG real-time").
+Con lai: PatientPanel... (mode "Heart Rate Control") van la placeholder.
 """
 
 from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QMessageBox
 
 from ui.mode_select_view import ModeSelectView
+from ui.ecg_recording_view import EcgRecordingView
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ergometer Control System")
-        self.resize(720, 480)
+        self.resize(900, 600)
 
-        # QStackedWidget: chứa nhiều "trang", chỉ hiện 1 trang tại 1 thời điểm
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
         self._setup_mode_select()
+        self._setup_ecg_recording()
 
     def _setup_mode_select(self):
         self.mode_select_view = ModeSelectView()
@@ -33,18 +32,21 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.mode_select_view)
         self.stack.setCurrentWidget(self.mode_select_view)
 
+    def _setup_ecg_recording(self):
+        self.ecg_recording_view = EcgRecordingView()
+        self.ecg_recording_view.back_to_menu.connect(self._on_back_to_menu)
+        self.stack.addWidget(self.ecg_recording_view)
+
     def _on_mode_selected(self, mode: str):
-        # TẠM THỜI: các màn hình tiếp theo (EcgRecordingView, PatientPanel)
-        # chưa được viết, nên chỉ hiện thông báo xác nhận signal hoạt động
-        # đúng. Khi các view đó có, dòng QMessageBox này sẽ được thay bằng
-        # self.stack.addWidget(...) + self.stack.setCurrentWidget(...).
         if mode == "ecg_realtime":
-            QMessageBox.information(
-                self, "OK", "Đã nhận lựa chọn: Đo ECG real-time.\n"
-                "(Màn hình thật sẽ được nối vào bước tiếp theo)"
-            )
+            self.ecg_recording_view.reset()
+            self.stack.setCurrentWidget(self.ecg_recording_view)
         elif mode == "heart_rate_control":
+            # TAM THOI: PatientPanel chua duoc viet
             QMessageBox.information(
-                self, "OK", "Đã nhận lựa chọn: Heart Rate Control.\n"
-                "(Màn hình thật sẽ được nối vào bước tiếp theo)"
+                self, "OK", "Da nhan lua chon: Heart Rate Control.\n"
+                "(Man hinh that se duoc noi vao buoc tiep theo)"
             )
+
+    def _on_back_to_menu(self):
+        self.stack.setCurrentWidget(self.mode_select_view)
