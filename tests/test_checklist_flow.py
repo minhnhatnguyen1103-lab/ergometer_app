@@ -22,7 +22,10 @@ from PyQt6.QtCore import QTimer
 
 from ui.main_window import MainWindow
 
-TEST_DURATION_SEC = 2
+# Phai LON HON warmup ~5s cua Pan-Tompkins, neu khong se khong co mau BPM
+# nao -> HrRestView hien popup "Khong co du lieu" thay vi popup xac nhan,
+# luong khong tien duoc sang ArduinoCheckView (giong test_hr_rest_flow dung 5s).
+TEST_DURATION_SEC = 6
 POLL_INTERVAL_MS = 150
 MEASURE_TIMEOUT_MS = TEST_DURATION_SEC * 1000 + 6000
 
