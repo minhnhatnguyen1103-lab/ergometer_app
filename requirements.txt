@@ -1,7 +1,5 @@
 PyQt6
-
-# Các dòng dưới đây sẽ được thêm khi cần (waveform, signal processing, serial)
-# pyqtgraph
- scipy
- numpy
-# pyserial
+pyqtgraph
+scipy
+numpy
+pyserial

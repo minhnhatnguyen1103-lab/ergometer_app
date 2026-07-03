@@ -8,4 +8,5 @@ __pycache__/
 # Du lieu that cua doi tuong thi nghiem - KHONG dua len git
 data/sessions/
 data/patient_lookup.*
+data/pending_sessions/
 recordings/

@@ -113,6 +113,38 @@ class PatientProfile:
             self.hr_rest_activity_level == self.ipaq_activity_level
         )
 
+    # ---------- luu/khoi phuc session dang do (khi chua co Arduino) ----------
+
+    def to_raw_dict(self) -> dict:
+        """Luu toan bo input goc + hr_rest (neu co) - du de tao lai
+        PatientProfile giong het qua from_raw_dict(), khac voi to_dict()
+        (dung de xuat CSV phan tich, khong dung de khoi phuc lai object)."""
+        return {
+            "name": self.name,
+            "age": self.age,
+            "sex": self.sex.value,
+            "height_cm": self.height_cm,
+            "weight_kg": self.weight_kg,
+            "vigorous_days_per_week": self.vigorous_days_per_week,
+            "vigorous_min_per_day": self.vigorous_min_per_day,
+            "moderate_days_per_week": self.moderate_days_per_week,
+            "moderate_min_per_day": self.moderate_min_per_day,
+            "patient_id": self.patient_id,
+            "created_at": self.created_at,
+            "hr_rest": self.hr_rest,
+        }
+
+    @classmethod
+    def from_raw_dict(cls, d: dict) -> "PatientProfile":
+        """Tao lai PatientProfile tu du lieu da luu boi to_raw_dict()."""
+        hr_rest = d.pop("hr_rest", None)
+        d = dict(d)
+        d["sex"] = Sex(d["sex"])
+        patient = cls(**d)
+        if hr_rest is not None:
+            patient.apply_hr_rest(hr_rest)
+        return patient
+
     # ---------- xuat ra de luu CSV / log ----------
 
     def to_dict(self) -> dict:

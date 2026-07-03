@@ -20,7 +20,8 @@ MVPA_ACTIVE_THRESHOLD_MIN_PER_WEEK = 150   # >=150 phut/tuan (vua+manh cong lai)
 VIGOROUS_ACTIVE_THRESHOLD_MIN_PER_WEEK = 75  # hoac >=75 phut/tuan rieng cuong do manh => Active
 HR_REST_ACTIVE_THRESHOLD_BPM = 70     # HR_rest <=70 => goi y Active (cross-check)
 
-# --- Timeline session MICT (đơn vị: giây) ---
+# --- Do HR_rest (baseline truoc khi vao Warmup) ---
+HR_REST_DURATION_SEC = 120   # 2 phut - co the chinh neu can
 WARMUP_DURATION_SEC = 5 * 60
 MAIN_DURATION_SEC = 20 * 60
 COOLDOWN_DURATION_SEC = 5 * 60
