@@ -25,12 +25,15 @@ def main():
         QPushButton:hover { background-color: #e0e0e0; }
         QPushButton:pressed { background-color: #d0d0d0; }
         QPushButton:disabled { background-color: #f5f5f5; color: #9e9e9e; border-color: #dddddd; }
-        QLineEdit, QComboBox, QSpinBox {
+        QLineEdit {
             background-color: white;
             border: 1px solid #bdbdbd;
             border-radius: 3px;
             padding: 3px 6px;
         }
+        /* KHONG style QComboBox/QSpinBox bang border+padding: lam Qt chuyen
+           sang che do ve-bang-stylesheet khien mui ten tang/giam mat chuc nang
+           va con tro thanh I-beam. De native, van tu trang tren nen trang. */
         QCheckBox::indicator {
             width: 16px;
             height: 16px;

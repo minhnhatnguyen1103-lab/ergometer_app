@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QTimer
 
 from ui.main_window import MainWindow
@@ -21,6 +21,15 @@ from ui.main_window import MainWindow
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
+
+    def _dismiss_modal():
+        """Tat hop thoai 'Da luu ban ghi' (modal) neu dang hien - neu khong
+        _toggle_recording() se block mai o QMessageBox.exec()."""
+        w = app.activeModalWidget()
+        if isinstance(w, QMessageBox):
+            btn = w.button(QMessageBox.StandardButton.Ok)
+            if btn:
+                btn.click()
     window.show()
 
     steps_done = []
@@ -52,6 +61,9 @@ def main():
         bpm_text = streaming.lbl_bpm.text()
         print(f"    BPM hien tai: {bpm_text}")
         assert bpm_text != "---", "BPM chua duoc cap nhat sau warmup"
+        # Dung ghi se hien modal 'Da luu' -> hen truoc mot cu click de tat no,
+        # neu khong _toggle_recording() block mai trong QMessageBox.exec().
+        QTimer.singleShot(200, _dismiss_modal)
         streaming._toggle_recording()
         assert not streaming.waveform.is_recording
         steps_done.append("stop_recording")

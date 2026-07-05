@@ -12,7 +12,8 @@ Màn hình hoàn chỉnh cho mode "Đo ECG real-time":
 import time
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QStackedWidget
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QStackedWidget, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
@@ -79,6 +80,8 @@ class _StreamingPage(QWidget):
         self._rec_timer.timeout.connect(self._update_rec_time)
         self._rec_t0 = None
         self._subject_name = "subject"
+        self._last_data_path = None
+        self._last_peak_path = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(16, 12, 16, 12)
@@ -145,12 +148,26 @@ class _StreamingPage(QWidget):
             self._rec_timer.stop()
             self.btn_rec.setText("⏺ Bắt đầu ghi")
             self.lbl_rec_time.setText("")
+            self._notify_saved()
         else:
             data_path, peak_path = self.waveform.start_recording(self._subject_name)
+            self._last_data_path = data_path
+            self._last_peak_path = peak_path
             self._rec_t0 = time.perf_counter()
             self._rec_timer.start(1000)
             self.btn_rec.setText("⏹ Dừng ghi")
             print(f"[REC] Bat dau ghi: {data_path}")
+
+    def _notify_saved(self):
+        """Bao cho nguoi van hanh biet da luu xong va luu o dau."""
+        if not self._last_data_path:
+            return
+        QMessageBox.information(
+            self, "Đã lưu bản ghi",
+            "Đã lưu 2 file vào thư mục recordings/:\n\n"
+            f"• Tín hiệu ECG:\n{self._last_data_path}\n\n"
+            f"• Vị trí R-peak:\n{self._last_peak_path}",
+        )
 
     def _update_rec_time(self):
         if self._rec_t0 is None:
@@ -160,10 +177,13 @@ class _StreamingPage(QWidget):
         self.lbl_rec_time.setText(f"● REC {m:02d}:{s:02d}")
 
     def _on_finish(self):
-        if self.waveform.is_recording:
+        was_recording = self.waveform.is_recording
+        if was_recording:
             self.waveform.stop_recording()
         self._rec_timer.stop()
         self.waveform.stop()
+        if was_recording:
+            self._notify_saved()
         self.back_requested.emit()
 
     def reset(self):

@@ -42,6 +42,22 @@ class WaveformView(QWidget):
         super().__init__()
 
         self.worker = AcquisitionWorker()
+        self._run_n = 0
+        self._recording = False
+
+        self.reset_state()
+
+        self._build_ui()
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._update)
+
+    def reset_state(self):
+        """Xoa TOAN BO trang thai nhan dang noi bo: detector (ke ca warmup
+        5s), buffer ECG/HR, bo loc, bo dem mau, BPM hien tai. Goi moi khi
+        bat dau mot lan do/streaming MOI de khong dung lai warmup cu va du
+        lieu BPM cu tu lan truoc (vd. bam 'Khong' o popup HR_rest roi do lai,
+        hoac doi tuong moi vao lai man hinh). Neu khong reset, lan do sau se
+        bo qua warmup va tinh HR_rest tren du lieu con sot lai."""
         self.detector = PanTompkinsRT()
 
         self.ecg_buf = collections.deque([0.0] * BUF, maxlen=BUF)
@@ -56,13 +72,6 @@ class WaveformView(QWidget):
         self._zi_lp1 = _zi(B_LP1, A_LP1)
         self._zi_lp2 = _zi(B_LP2, A_LP2)
         self._zi_nt = _zi(B_NT, A_NT)
-
-        self._run_n = 0
-        self._recording = False
-
-        self._build_ui()
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._update)
 
     # ─── UI ───────────────────────────────────────────────────────
 
@@ -96,6 +105,7 @@ class WaveformView(QWidget):
     # ─── Điều khiển từ bên ngoài ─────────────────────────────────
 
     def start(self):
+        self.reset_state()   # moi lan start la mot lan do/streaming hoan toan moi
         self.worker.start()
         self.status_changed.emit(self.worker.is_connected, self.worker.is_demo)
         self._timer.start(ANIM_MS)

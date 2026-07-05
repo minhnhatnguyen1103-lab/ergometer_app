@@ -126,7 +126,8 @@ ergometer_app/
 ### 5.2 `EcgRecordingView` (mode phụ, không cần Arduino)
 Có 2 trang nội bộ (`QStackedWidget`):
 - **Trang nhập tên**: `QLineEdit` tên đối tượng → nút "Bắt đầu streaming" (nếu tên rỗng thì mặc định "subject") → nút "Quay lại" về menu.
-- **Trang streaming**: nhúng `WaveformView` (ECG + HR realtime, tự bắt đầu acquisition). Nút **"⏺ Bắt đầu ghi"** toggle thành **"⏹ Dừng ghi"** — gọi `waveform.start_recording()`/`stop_recording()`, ghi 2 file CSV (`..._data.csv`, `..._peaks.csv`) vào `recordings/`. Label BPM lớn cập nhật realtime. Label trạng thái `● LIVE`/`● DEMO`/`● ERROR`. Nút **"Kết thúc, quay về menu"** → dừng ghi nếu đang ghi, dừng acquisition, quay `ModeSelectView`.
+- **Trang streaming**: nhúng `WaveformView` (ECG + HR realtime, tự bắt đầu acquisition). Nút **"⏺ Bắt đầu ghi"** toggle thành **"⏹ Dừng ghi"** — gọi `waveform.start_recording()`/`stop_recording()`, ghi 2 file CSV (`..._data.csv`, `..._peaks.csv`) vào `recordings/`. Khi bấm **Dừng ghi** (hoặc **Kết thúc** trong lúc đang ghi), hiện `QMessageBox` thông báo đã lưu kèm đường dẫn 2 file. Label BPM lớn cập nhật realtime. Label trạng thái `● LIVE`/`● DEMO`/`● ERROR`. Nút **"Kết thúc, quay về menu"** → dừng ghi nếu đang ghi, dừng acquisition, quay `ModeSelectView`.
+- **Reset giữa các lần**: `WaveformView.start()` gọi `reset_state()` — tạo lại detector (kể cả warmup 5s), xóa buffer ECG/HR + bộ lọc — nên mỗi lần bắt đầu streaming/đo là hoàn toàn mới, không dùng lại trạng thái cũ.
 
 ### 5.3 `PatientPanel` (bước 1 của Heart Rate Control)
 3 trang nội bộ:
