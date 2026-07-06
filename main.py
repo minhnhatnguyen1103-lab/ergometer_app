@@ -3,16 +3,25 @@ main.py
 --------
 Entry point THẬT của app. Chạy file này để mở cửa sổ ứng dụng.
 
-Chạy: python main.py
+Chạy: python main.py   (PHẢI chạy từ thư mục gốc repo để tìm thấy mpdev.dll
+                        + xerces-c_3_1.dll khi dùng phần cứng MP36 thật)
 """
 
 import sys
+import multiprocessing as mp
 from PyQt6.QtWidgets import QApplication
 
 from ui.main_window import MainWindow
 
 
 def main():
+    # BAT BUOC cho tang thu tin hieu: signals/acquisition.py chay _acq_worker
+    # trong multiprocessing.Process de noi chuyen voi mpdev.dll (BIOPAC MP36).
+    # Tren Windows spawn la mac dinh, nhung dat tuong minh de dam bao child
+    # process spawn dung (khong fork) - neu khong, viec spawn co the loi khi
+    # dong goi .exe hoac chay o moi truong khac. force=True de goi lai an toan.
+    mp.set_start_method('spawn', force=True)
+
     app = QApplication(sys.argv)
     app.setStyleSheet("""
         QWidget { background-color: white; color: #212121; }

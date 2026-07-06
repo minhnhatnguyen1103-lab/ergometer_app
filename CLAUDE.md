@@ -128,4 +128,9 @@ Control-layer specifics worth knowing before touching them:
   hold real experimental-subject data and must never be committed.
 - `mpdev.dll` (BIOPAC driver) lives at repo root and is loaded via `ctypes.windll.LoadLibrary` at a path resolved
   relative to `os.getcwd()` — the app must be launched from the repo root for hardware mode to find it (demo mode
-  is unaffected).
+  is unaffected). `mpdev.dll` (64-bit) depends on `xerces-c_3_1.dll` (Apache Xerces-C++) which **must also sit at
+  repo root, same 64-bit architecture** — without it, `LoadLibrary` fails with "could not find … dependencies" and
+  everything silently falls back to demo. Both DLLs are now present and verified against a real MP36 (connects,
+  streams 1000 Hz ECG, records data+peak CSVs). Only one process can hold the MP36 at a time, so the demo-mode UI
+  tests under `tests/` will grab the real device (and may fail on their ~72 BPM assumption) when an MP36 is plugged
+  in — unplug it (or accept live capture) before running the suite.

@@ -37,7 +37,7 @@ ergometer_app/
 ├── requirements.txt          # PyQt6, pyqtgraph, scipy, numpy, pyserial
 ├── main.py                   # entry point QApplication -> MainWindow
 ├── CLAUDE.md                 # tự sinh bởi /init trong Claude Code
-├── mpdev.dll                 # BHAPI DLL (không đầy đủ dependency - xem mục 9)
+├── mpdev.dll                 # BHAPI DLL (64-bit) + xerces-c_3_1.dll (dependency) — ĐÃ đủ, load OK
 │
 ├── core/
 │   └── config.py             # ✅ TẤT CẢ hằng số/ngưỡng của hệ thống — xem mục 6
@@ -244,7 +244,7 @@ Mọi thứ **TRƯỚC** mốc này đã/đang làm được mà KHÔNG cần Ar
 - `hardware/real_serial_controller.py` — giao tiếp UART thật với Arduino Uno R3 đã thay thế board GENUS-249 gốc
 - Firmware Arduino (4 phase: PlatformIO setup → standalone mode → serial protocol → tích hợp) — hiện CHƯA làm
 - Calibrate STEPS_PER_LEVEL bằng feeler gauge
-- `mpdev.dll` hiện load lỗi ("could not find dependency") — cần copy toàn bộ file `.dll` khác cùng chỗ với `HRC.py` cũ sang, chưa xử lý (không chặn tiến độ vì Demo mode tự động fallback).
+- ~~`mpdev.dll` hiện load lỗi ("could not find dependency")~~ **ĐÃ XỬ LÝ**: dependency thiếu là `xerces-c_3_1.dll` (thư viện XML Apache Xerces-C++). Đã đặt `xerces-c_3_1.dll` (bản 64-bit, khớp mpdev.dll 64-bit) cạnh `mpdev.dll` ở gốc repo → mpdev.dll load OK. Đã **kiểm chứng với MP36 thật**: connect thành công, stream ECG 1000 Hz, ghi CSV data+peaks đúng. **Yêu cầu chạy phần cứng**: (1) chạy `python main.py` TỪ thư mục gốc repo (để `os.getcwd()` tìm thấy 2 DLL); (2) đóng AcqKnowledge / mọi app đang chiếm MP36 (chỉ 1 tiến trình connect được cùng lúc); (3) dùng Python 64-bit (venv hiện tại đúng 64-bit). **Lưu ý test**: các test UI trong `tests/` giả định Demo mode (~72 BPM) — khi MP36 đang cắm + DLL load được, chúng sẽ giành thiết bị thật và có thể fail/treo; rút MP36 (hoặc chấp nhận dùng thiết bị thật) khi chạy test suite.
 
 ---
 
