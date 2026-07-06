@@ -86,15 +86,27 @@ Two different styles exist:
 ### The full navigation flow (see `ui/main_window.py` docstring)
 
 ```
-ModeSelectView -> PatientPanel -> HrRestView -> ArduinoCheckView -> PreflightChecklistView -> (SessionView: not yet written, blocked on Fuzzy controller + real Arduino protocol)
+ModeSelectView -> PatientPanel -> HrRestView -> ArduinoCheckView -> PreflightChecklistView -> SessionView (full MICT runner, works today with MockSerialController)
 ModeSelectView -> EcgRecordingView (independent, fully finished flow)
 ModeSelectView -> "Tiếp tục session dang dở" -> ArduinoCheckView (skips PatientPanel + HrRestView, loads saved pending session)
 ```
 
-`SessionView` (the actual MICT session runner, comparing live HR against the Karvonen zone and driving level via
-`SerialControllerBase`) does not exist yet — `_on_ready_to_start` in `main_window.py` currently just shows a
-`QMessageBox` placeholder. When implementing it, it sits downstream of both the fuzzy controller (not yet written)
-and real Arduino communication (not yet written) — check for those before assuming this is a small UI-only task.
+`SessionView` (the actual MICT session runner) is now implemented and wired. `_on_ready_to_start` in
+`main_window.py` builds a `SessionManager` (injecting `FuzzyController`, a `MockSerialController`, a
+`SessionLogger`, the Karvonen zone, and the IPAQ group) with `hr_source = session_view.waveform`, then calls
+`session_view.begin(...)`. The whole Heart Rate Control loop runs end-to-end **without any real hardware** (ECG via
+Demo mode, resistance via Mock). The remaining hardware-dependent work is `hardware/real_serial_controller.py` +
+the Arduino firmware + the serial protocol — swapping Mock→Real is a one-line change at the `hardware = ...`
+construction in `_on_ready_to_start` because everything goes through the `SerialControllerBase` interface.
+
+Control-layer specifics worth knowing before touching them:
+- `control/session_manager.py` runs a 3-phase state machine on **absolute** monotonic time (never counts loop
+  iterations). Each tick it reads `hardware.current_level` FIRST (telemetry as source of truth) so a physical
+  button press mid-session is detected as `manual_override` rather than fought. HR-loss safety is measured in
+  **real wall-clock** seconds (via `time.monotonic()`), deliberately NOT scaled by the `time_scale` test knob —
+  signal loss is a physical event. `time_scale` only compresses the protocol schedule for tests.
+- `control/fuzzy_controller.py` is a hand-written Mamdani controller (no scikit-fuzzy/simpful dependency), 5×3
+  rule table → 15 rules, centroid defuzzification, then hard deadband + clamp to `[LEVEL_MIN, LEVEL_MAX]`.
 
 ### Data flow for a full Heart Rate Control run
 
@@ -105,8 +117,10 @@ and real Arduino communication (not yet written) — check for those before assu
 3. `ArduinoCheckView` gates progress on `hardware/port_scan.find_likely_arduino_port()` finding a plausible port;
    "Quit" before success offers to persist the patient via `pending_session_store.save_pending()`.
 4. `PreflightChecklistView` requires every checkbox ticked before enabling start.
-5. (Not yet built) `SessionView` would call `control/hr_target.compute_karvonen_zone(patient)` once, then loop
-   comparing live HR to `zone.contains(hr_actual)` and drive `SerialControllerBase.send_level()`.
+5. `SessionManager` calls `control/hr_target.compute_karvonen_zone(patient)` once, then runs Warmup (fixed level
+   by IPAQ group) → Main (Fuzzy every 5–8 s, comparing smoothed HR to the zone) → Cooldown (linear ramp to
+   Level 1, no Fuzzy), marks `HR_end_main` and `HR_at_1min_post` for HRR1, and streams both to `SessionLogger`
+   (anonymised CSVs under `recordings/`). `SessionView` only renders the signals it emits and owns the STOP button.
 
 ## Data & gitignore notes
 

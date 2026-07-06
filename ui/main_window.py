@@ -1,18 +1,22 @@
 """
 ui/main_window.py
 -------------------
-Cua so chinh. Da noi day du nhanh "Heart Rate Control" toi truoc moc
-Fuzzy/hardware:
+Cua so chinh. Da noi TRON VEN nhanh "Heart Rate Control" toi het (voi
+MockSerialController - chua can Arduino that):
 
   ModeSelectView -> PatientPanel -> HrRestView -> ArduinoCheckView
                                                  -> PreflightChecklistView
-                                                 -> (SessionView: CHUA VIET,
-                                                     nam sau moc Fuzzy)
+                                                 -> SessionView (MICT that:
+                                                    Fuzzy + 3 pha + log + STOP)
 
   ModeSelectView -> EcgRecordingView (nhanh rieng, da xong hoan chinh)
 
   ModeSelectView -> "Tiep tuc session dang do" -> ArduinoCheckView
   (bo qua PatientPanel + HrRestView vi da co san)
+
+_on_ready_to_start (M9 wiring) tao SessionManager (Fuzzy + Mock hardware +
+logger + Karvonen zone), tiem hr_source = SessionView.waveform, roi mo
+SessionView. Doi sang Arduino that sau nay chi thay dong tao `hardware`.
 """
 
 from PyQt6.QtWidgets import QMainWindow, QStackedWidget, QMessageBox
@@ -23,6 +27,13 @@ from ui.patient_panel import PatientPanel
 from ui.hr_rest_view import HrRestView
 from ui.arduino_check_view import ArduinoCheckView
 from ui.preflight_checklist_view import PreflightChecklistView
+from ui.session_view import SessionView
+
+from control.hr_target import compute_karvonen_zone
+from control.fuzzy_controller import FuzzyController
+from control.session_manager import SessionManager
+from data.session_logger import SessionLogger
+from hardware.mock_serial_controller import MockSerialController
 
 from data.pending_session_store import list_pending, load_pending, delete_pending
 
@@ -42,6 +53,11 @@ class MainWindow(QMainWindow):
         self._setup_hr_rest_view()
         self._setup_arduino_check()
         self._setup_checklist()
+        self._setup_session_view()
+
+        # SessionManager song trong luc mot phien dang chay (giu tham chieu de
+        # khong bi thu gom rac); tao moi moi lan bat dau mot buoi tap.
+        self._session_manager = None
 
         self._refresh_pending()
 
@@ -83,6 +99,11 @@ class MainWindow(QMainWindow):
         self.checklist_view.ready_to_start.connect(self._on_ready_to_start)
         self.stack.addWidget(self.checklist_view)
 
+    def _setup_session_view(self):
+        self.session_view = SessionView()
+        self.session_view.session_closed.connect(self._on_session_closed)
+        self.stack.addWidget(self.session_view)
+
     # ─── Điều hướng ──────────────────────────────────────────────
 
     def _on_mode_selected(self, mode: str):
@@ -107,15 +128,40 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(self.checklist_view)
 
     def _on_ready_to_start(self, patient):
-        # TAM THOI: SessionView (MICT that) nam sau moc Fuzzy/hardware, chua viet
-        QMessageBox.information(
-            self, "OK",
-            f"Checklist hoan tat cho {patient.name}.\n"
-            f"HR_rest={patient.hr_rest} bpm, HRR={patient.hr_max - patient.hr_rest:.1f}\n\n"
-            "SessionView (chuong trinh MICT that) se duoc noi khi lam toi "
-            "moc Fuzzy + giao tiep Arduino."
+        """M9 wiring: khoi tao SessionManager (tiem Fuzzy + hardware Mock +
+        logger + Karvonen zone + nhom IPAQ), tiem hr_source = waveform cua
+        SessionView, roi mo man hinh MICT that.
+
+        LUU Y: hardware hien la MockSerialController vi RealSerialController
+        (M6) + firmware Arduino (M7) chua lam. Doi sang Arduino that sau nay
+        chi can thay dong tao `hardware` o duoi (dung interface
+        SerialControllerBase, khong sua logic SessionManager)."""
+        try:
+            zone = compute_karvonen_zone(patient)
+        except Exception as e:
+            QMessageBox.warning(self, "Loi", f"Khong tinh duoc vung muc tieu Karvonen:\n{e}")
+            return
+
+        hardware = MockSerialController()
+        if not hardware.connect():
+            QMessageBox.warning(self, "Loi", "Khong ket noi duoc board dieu khien (Mock).")
+            return
+
+        logger = SessionLogger(patient.patient_id)
+        self._session_manager = SessionManager(
+            hardware=hardware,
+            controller=FuzzyController(),
+            logger=logger,
+            hr_target_result=zone,
+            patient_group=patient.ipaq_activity_level,
+            hr_source=self.session_view.waveform,
         )
+        self.stack.setCurrentWidget(self.session_view)
+        self.session_view.begin(self._session_manager, patient_name=patient.name)
+
+    def _on_session_closed(self):
         self.checklist_view.reset()
+        self._session_manager = None
         self._refresh_pending()
         self.stack.setCurrentWidget(self.mode_select_view)
 

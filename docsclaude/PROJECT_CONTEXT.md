@@ -46,8 +46,8 @@ ergometer_app/
 │   ├── patient.py            # ✅ PatientProfile — IPAQ-SF, Karvonen input
 │   ├── pending_session_store.py  # ✅ lưu/khôi phục session dang dở (JSON)
 │   ├── pending_sessions/     # (gitignored) file JSON session dang dở
-│   ├── session_logger.py     # ⏳ CHƯA VIẾT
-│   └── export_manager.py     # ⏳ CHƯA VIẾT
+│   ├── session_logger.py     # ✅ (M3) 2 CSV timeseries+events + summary.json, ẩn danh
+│   └── export_manager.py     # ⏳ CHƯA VIẾT (M8 — làm sau cùng)
 │
 ├── signals/                  # LƯU Ý: có "s" — tránh trùng module chuẩn `signal` của Python
 │   ├── constants.py          # ✅ FS, BUF, CHUNK, MP36_GAIN, BPM_MIN/MAX...
@@ -57,8 +57,8 @@ ergometer_app/
 │
 ├── control/
 │   ├── hr_target.py          # ✅ Karvonen: compute_karvonen_zone()
-│   ├── session_manager.py    # ⏳ CHƯA VIẾT — việc tiếp theo, xem mục 7
-│   └── fuzzy_controller.py   # 🚫 SAU ranh giới dừng (mục 9)
+│   ├── session_manager.py    # ✅ (M2) state machine 3 pha + Fuzzy + HRR1 + an toàn
+│   └── fuzzy_controller.py   # ✅ (M1) Mamdani tự viết, 15 luật + deadband + clamp
 │
 ├── hardware/
 │   ├── port_scan.py          # ✅ find_likely_arduino_port() — chỉ dò cổng COM, KHÔNG gửi lệnh
@@ -74,20 +74,24 @@ ergometer_app/
 │   ├── hr_rest_view.py       # ✅ đo HR_rest
 │   ├── arduino_check_view.py # ✅ kiểm tra kết nối Arduino
 │   ├── preflight_checklist_view.py  # ✅ checklist trước khi vào MICT
-│   └── session_view.py       # 🚫 SAU ranh giới dừng — màn hình MICT thật
+│   └── session_view.py       # ✅ (M4) màn hình MICT thật — HR/level/log/STOP
 │
 └── tests/                    # mỗi module đều có test tương ứng, chạy được KHÔNG cần phần cứng
     ├── smoke_test.py
     ├── test_signals_demo.py
+    ├── test_fuzzy_controller.py       # (M1) 15 ô bảng luật + deadband + clamp
+    ├── test_session_logger.py         # (M3) ghi/đọc CSV + summary, ẩn danh
+    ├── test_session_manager.py        # (M2) 3 pha nén thời gian + manual_override + HRR1 + an toàn
+    ├── test_session_view.py           # (M4) binding hiển thị + nút STOP
     ├── test_waveform_view.py
     ├── test_full_ecg_flow.py
     ├── test_patient_panel_flow.py
     ├── test_hr_rest_flow.py
-    ├── test_checklist_flow.py
+    ├── test_checklist_flow.py          # (cập nhật) Bắt đầu → mở SessionView (M9)
     └── test_arduino_check_and_resume.py
 ```
 
-**⚠️ TRẠNG THÁI GIT HIỆN TẠI**: các file trong bảng trên (ArduinoCheckView, PreflightChecklistView, pending_session_store, mock_serial_controller, port_scan, serial_controller_base) đã được code và test PASS, nhưng **CHƯA `git commit`**. Việc đầu tiên Claude Code nên làm khi mở project: chạy toàn bộ test trong `tests/`, nếu pass hết thì commit checkpoint này trước khi code tiếp.
+**⚠️ CẬP NHẬT**: toàn bộ đường tới hạn phần mềm PC (M1 Fuzzy → M3 Logger → M2 SessionManager → M4 SessionView → M9 wiring) đã code xong và **test PASS với Mock/Demo** (12/12 test trong `tests/`). Nhánh Heart Rate Control giờ chạy trọn vẹn từ ModeSelect tới màn hình MICT thật (Fuzzy + 3 pha + log + STOP) mà **chưa cần Arduino**. Xem chi tiết ở Mục 4. Đã đóng vòng phần mềm PC hoàn chỉnh (mốc ở IMPLEMENTATION_PLAN.md Mục 2.4 bước 5).
 
 ---
 
@@ -106,13 +110,15 @@ ergometer_app/
 | `hardware/port_scan.py`, `arduino_check_view.py` | ✅ | Retry thủ công, Quit + lưu pending |
 | `data/pending_session_store.py` | ✅ | Resume đúng patient + hr_rest |
 | `ui/preflight_checklist_view.py` | ✅ | 4 mục, nút Bắt đầu chỉ bật khi tick hết |
-| `hardware/mock_serial_controller.py`, `serial_controller_base.py` | ✅ | Sẵn sàng, CHƯA được dùng (chờ SessionManager) |
-| `control/session_manager.py` | ⏳ | **VIỆC TIẾP THEO** |
-| `data/session_logger.py` | ⏳ | Chưa viết |
-| `data/export_manager.py` | ⏳ | Chưa viết |
-| `control/fuzzy_controller.py` | 🚫 | Sau ranh giới dừng |
-| `ui/session_view.py` | 🚫 | Sau ranh giới dừng |
-| Arduino firmware thật | 🚫 | Chưa có phần cứng để test |
+| `hardware/mock_serial_controller.py`, `serial_controller_base.py` | ✅ | Dùng trong SessionManager; Mock thêm `simulate_manual_button()` (test manual_override) + `.rpm` (test cadence) |
+| `control/fuzzy_controller.py` (M1) | ✅ | Mamdani tự viết (numpy), 15 luật + deadband + clamp + out_of_range; test đủ 15 ô |
+| `data/session_logger.py` (M3) | ✅ | 2 CSV (timeseries + events) + summary.json, ẩn danh (chỉ patient_id) |
+| `control/session_manager.py` (M2) | ✅ | State machine 3 pha (đồng hồ tuyệt đối), đọc telemetry trước → manual_override, HRR1, an toàn mất HR (đo **thời gian thực**). Test Mock nén thời gian PASS |
+| `ui/session_view.py` (M4) | ✅ | Màn MICT: HR/vùng/level/đồng hồ/log + nút STOP; chỉ subscribe signal của SessionManager |
+| `main_window.py` M9 wiring | ✅ | `_on_ready_to_start` tạo SessionManager (Fuzzy+Mock+logger+zone) → mở SessionView |
+| `data/export_manager.py` (M8) | ⏳ | Chưa viết (làm sau cùng — báo cáo sau buổi tập) |
+| `hardware/real_serial_controller.py` (M6) | 🚫 | Cần Arduino thật + chốt giao thức M5 |
+| Arduino firmware thật (M7) | 🚫 | Chưa có phần cứng để test |
 
 ---
 
@@ -159,8 +165,16 @@ Nguồn: khuyến nghị WHO/ACSM, dichotomization method phổ biến trong ngh
 - **Đã tìm thấy**: label xanh, nút **"Tiếp tục →"** hiện (nút Retry ẩn) → phát `connected` → sang `PreflightChecklistView`.
 - Nút **"Quit (thoát, lưu tạm nếu cần)"**: hỏi popup có lưu session dang dở không (Yes → `save_pending()` ghi JSON) → về menu.
 
-### 5.6 `PreflightChecklistView` (bước 4 — điểm dừng hiện tại của nhánh Heart Rate Control)
-4 checkbox: điện cực đúng vị trí, BIOPAC MP36 kết nối, Arduino cấp nguồn, đối tượng ngồi đúng tư thế. Nút **"Bắt đầu chương trình MICT"** CHỈ bật khi tick hết 4 ô. Bấm vào → phát `ready_to_start` → hiện tại (`MainWindow._on_ready_to_start`) chỉ show `QMessageBox` tạm thông báo "sẽ nối SessionView khi tới mốc Fuzzy/hardware" rồi quay menu — **đây là placeholder, sẽ thay bằng chuyển thật sang `SessionView` khi module đó được viết.**
+### 5.6 `PreflightChecklistView` (bước 4)
+4 checkbox: điện cực đúng vị trí, BIOPAC MP36 kết nối, Arduino cấp nguồn, đối tượng ngồi đúng tư thế. Nút **"Bắt đầu chương trình MICT"** CHỈ bật khi tick hết 4 ô. Bấm vào → phát `ready_to_start` → `MainWindow._on_ready_to_start` tạo `SessionManager` (Fuzzy + `MockSerialController` + `SessionLogger` + Karvonen zone + nhóm IPAQ, `hr_source` = `SessionView.waveform`) → mở `SessionView` (không còn placeholder).
+
+### 5.7 `SessionView` (bước 5 — màn hình MICT thật, điểm dừng hiện tại)
+Chỉ hiển thị + nhận input (nút STOP); mọi logic ở `SessionManager`. Sở hữu `WaveformView` (ECG realtime, cung cấp `.cur_bpm` làm nguồn HR). `begin(session_manager)` kết nối signal rồi bắt đầu waveform + phiên tập.
+- **Hiển thị**: waveform ECG; số HR lớn (đổi màu xanh/đỏ theo trong/ngoài vùng); dải mục tiêu THR_low–THR_high; mức tải hiện tại; nhãn nhỏ khi có `manual_override`; đồng hồ đã trôi / tổng; banner cảnh báo (cadence / mất HR); nhật ký sự kiện cuộn.
+- **Nút STOP** (đỏ, to): hỏi xác nhận → `SessionManager.stop("user")` → về Level 1 → hiện tổng kết (HRR1...) → phát `session_closed` → `MainWindow` quay về menu.
+- Kết thúc tự nhiên (hết 30 phút): `session_finished` → cùng luồng tổng kết. Modal tổng kết được hoãn bằng `QTimer.singleShot(0)` để không mở modal đồng bộ từ trong callback timer (tránh tái nhập).
+
+**Ranh giới hiện tại**: đây là điểm xa nhất chạy được với Mock. Bước tiếp theo cần phần cứng là M5 (chốt giao thức serial) → M6 (`RealSerialController`) → M7 (firmware Arduino) — xem IMPLEMENTATION_PLAN.md.
 
 ---
 

@@ -36,6 +36,13 @@ class MockSerialController(SerialControllerBase):
         self._move_start_t = 0.0
         self._move_start_level = config.LEVEL_MIN
 
+        # RPM: placeholder cho telemetry cadence - giao thuc Serial that (M5/M6,
+        # xem IMPLEMENTATION_PLAN.md muc 3.5) chua duoc hien thuc, nen chua co
+        # nguon RPM that. None = "khong co du lieu cadence" (SessionManager bo
+        # qua canh bao cadence). Test co the gan truc tiep .rpm = <gia tri> de
+        # gia lap telemetry RPM.
+        self.rpm: float | None = None
+
     def connect(self) -> bool:
         self._connect_attempts += 1
         if self._connect_attempts <= self._fail_first_n:
@@ -78,3 +85,14 @@ class MockSerialController(SerialControllerBase):
 
     def disconnect(self) -> None:
         self._connected = False
+
+    def simulate_manual_button(self, new_level: int) -> None:
+        """CHI DUNG TRONG TEST: gia lap ky thuat vien bam nut vat ly tren
+        Arduino, doi level NGAY LAP TUC (khac voi send_level() vi khong di
+        qua thoi gian mo phong dong co) - dai dien cho thao tac tay that
+        (nhanh hon nhieu so voi chu ky tick 250ms cua SessionManager).
+        Dung de test SessionManager phat hien dung 'manual_override' khi
+        doc current_level thay vi tin theo gia tri no vua gui di."""
+        new_level = max(config.LEVEL_MIN, min(config.LEVEL_MAX, new_level))
+        self._current_level = new_level
+        self._target_level = new_level

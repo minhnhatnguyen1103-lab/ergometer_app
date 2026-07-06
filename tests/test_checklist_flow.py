@@ -113,12 +113,11 @@ def main():
         QTimer.singleShot(200, step5_start)
 
     def step5_start():
-        print("[4] Bam Bat dau...")
-        QTimer.singleShot(300, _click_modal)
+        print("[4] Bam Bat dau -> phai mo SessionView (MICT that, M9 wiring)...")
         window.checklist_view._on_start()
         steps_done.append("started")
 
-        QTimer.singleShot(600, finish)
+        QTimer.singleShot(800, finish)
 
     def finish():
         patcher.stop()
@@ -126,8 +125,23 @@ def main():
                     "checklist_gating_correct", "started"]
         print(f"\nCac buoc da hoan thanh: {steps_done}")
         assert steps_done == expected, f"Thieu buoc! Ky vong {expected}"
-        assert window.stack.currentWidget() is window.mode_select_view
-        print("\nOK - toan bo luong ArduinoCheckView(connected) + Checklist hoat dong dung")
+        # Bam Bat dau gio mo SessionView that (khong con placeholder ve menu)
+        assert window.stack.currentWidget() is window.session_view, \
+            "Bam Bat dau phai mo SessionView"
+        assert window._session_manager is not None, "SessionManager phai duoc tao"
+
+        # Don dep phien dang chay (dung timer + waveform, dong + xoa CSV log tam)
+        # de khong trigger modal tong ket / de lai file. Phai finalize() de dong
+        # file handle truoc khi xoa (Windows khong cho xoa file dang mo).
+        sm = window._session_manager
+        sm._timer.stop()
+        window.session_view.waveform.stop()
+        sm.logger.finalize({})
+        for p in (sm.logger.timeseries_path, sm.logger.events_path, sm.logger.summary_path):
+            if os.path.exists(p):
+                os.remove(p)
+
+        print("\nOK - Checklist -> Bat dau mo SessionView (M9 wiring) hoat dong dung")
         app.quit()
 
     QTimer.singleShot(200, step1_reach_arduino_check)

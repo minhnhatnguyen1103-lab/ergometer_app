@@ -39,3 +39,19 @@ HR_DEADBAND_BPM = 3
 # --- Giới hạn số level của ergometer GENUS-249 ---
 LEVEL_MIN = 1
 LEVEL_MAX = 16
+LEVEL_EXPECTED_MIN = 5     # dai ky vong khi Fuzzy dang chay dung (chi canh bao, khong chan)
+LEVEL_EXPECTED_MAX = 10
+
+# --- MockSerialController: mo phong thoi gian motor di chuyen giua 2 level ---
+# (tham chieu boi hardware/mock_serial_controller.py - truoc day thieu hang so
+# nay trong config.py, se crash ngay khi khoi tao MockSerialController() khong
+# truyen level_change_delay_sec tuong minh)
+MOCK_LEVEL_CHANGE_DELAY_SEC = 1.5
+
+# --- SessionManager: nhac truong vong dieu khien (control/session_manager.py) ---
+SESSION_TICK_MS = 250                  # chu ky vong lap chinh, khong phu thuoc time_scale
+HR_SMOOTHING_WINDOW_SEC = 6            # cua so lam muot HR truoc khi dua vao Fuzzy (5-8s theo dac ta)
+HR_STALE_SHORT_TIMEOUT_SEC = 8         # mat HR ngan: giu nguyen level, chi canh bao
+HR_STALE_LONG_TIMEOUT_SEC = 20         # mat HR keo dai: chu dong SET 1 (an toan)
+CADENCE_MIN_RPM = 60
+CADENCE_MAX_RPM = 70
