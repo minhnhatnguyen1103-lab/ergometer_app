@@ -27,6 +27,7 @@ from signals.acquisition import AcquisitionWorker
 from signals.pan_tompkins import PanTompkinsRT
 from signals.filters import B_HP, A_HP, B_LP1, A_LP1, B_LP2, A_LP2, B_NT, A_NT
 from signals.constants import FS, WIN_SEC, BUF, MP36_GAIN, LOG_DIR
+from ui.theme import BG, BRAND, DANGER, MUTED
 
 ANIM_MS = 25  # ~40 fps, giống HRC.py
 
@@ -79,15 +80,16 @@ class WaveformView(QWidget):
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
 
-        pg.setConfigOptions(antialias=True)
+        pg.setConfigOptions(antialias=True, background=BG, foreground=MUTED)
         glw = pg.GraphicsLayoutWidget()
+        glw.setBackground(BG)
 
         self.ecg_plot = glw.addPlot(row=0, col=0)
         self.ecg_plot.setLabel('left', 'mV')
         self.ecg_plot.showGrid(x=True, y=True, alpha=0.2)
         self.ecg_plot.setMouseEnabled(x=False, y=False)
-        self.line_ecg = self.ecg_plot.plot(pen=pg.mkPen(color='#1565c0', width=1))
-        self.scat_r = pg.ScatterPlotItem(size=8, brush=pg.mkBrush('#e53935'), symbol='t1')
+        self.line_ecg = self.ecg_plot.plot(pen=pg.mkPen(color=BRAND, width=1.2))
+        self.scat_r = pg.ScatterPlotItem(size=8, brush=pg.mkBrush(DANGER), symbol='t1')
         self.ecg_plot.addItem(self.scat_r)
 
         glw.nextRow()
@@ -97,7 +99,7 @@ class WaveformView(QWidget):
         self.hr_plot.showGrid(x=True, y=True, alpha=0.2)
         self.hr_plot.setMouseEnabled(x=False, y=False)
         self.hr_plot.setYRange(30, 190)
-        self.line_hr = self.hr_plot.plot(pen=pg.mkPen(color='#c62828', width=2))
+        self.line_hr = self.hr_plot.plot(pen=pg.mkPen(color=DANGER, width=2))
 
         layout.addWidget(glw)
         self.setLayout(layout)

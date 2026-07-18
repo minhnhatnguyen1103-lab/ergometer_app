@@ -31,7 +31,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ergometer Control System")
-        self.resize(900, 600)
+        self.resize(1180, 760)
+        self.setMinimumSize(900, 620)
 
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)

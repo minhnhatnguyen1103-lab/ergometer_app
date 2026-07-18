@@ -12,7 +12,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QTimer
 
 from ui.main_window import MainWindow
@@ -22,14 +22,6 @@ def main():
     app = QApplication(sys.argv)
     window = MainWindow()
 
-    def _dismiss_modal():
-        """Tat hop thoai 'Da luu ban ghi' (modal) neu dang hien - neu khong
-        _toggle_recording() se block mai o QMessageBox.exec()."""
-        w = app.activeModalWidget()
-        if isinstance(w, QMessageBox):
-            btn = w.button(QMessageBox.StandardButton.Ok)
-            if btn:
-                btn.click()
     window.show()
 
     steps_done = []
@@ -60,10 +52,7 @@ def main():
         streaming = window.ecg_recording_view.streaming_page
         bpm_text = streaming.lbl_bpm.text()
         print(f"    BPM hien tai: {bpm_text}")
-        assert bpm_text != "---", "BPM chua duoc cap nhat sau warmup"
-        # Dung ghi se hien modal 'Da luu' -> hen truoc mot cu click de tat no,
-        # neu khong _toggle_recording() block mai trong QMessageBox.exec().
-        QTimer.singleShot(200, _dismiss_modal)
+        assert bpm_text not in {"---", "—"}, "BPM chua duoc cap nhat sau warmup"
         streaming._toggle_recording()
         assert not streaming.waveform.is_recording
         steps_done.append("stop_recording")
@@ -87,9 +76,10 @@ def main():
     QTimer.singleShot(500, step1_select_ecg_mode)
     QTimer.singleShot(1000, step2_enter_name_and_start)
     QTimer.singleShot(1500, step3_start_recording)
-    QTimer.singleShot(7000, step4_check_bpm_and_stop)
-    QTimer.singleShot(7500, step5_finish_and_back)
-    QTimer.singleShot(8000, finish)
+    # MP36 connect timeout (~4s) + Pan-Tompkins warmup (~5s).
+    QTimer.singleShot(12000, step4_check_bpm_and_stop)
+    QTimer.singleShot(12500, step5_finish_and_back)
+    QTimer.singleShot(13000, finish)
 
     app.exec()
 

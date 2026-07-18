@@ -1,23 +1,15 @@
-"""
-ui/ecg_recording_view.py
----------------------------
-Màn hình hoàn chỉnh cho mode "Đo ECG real-time":
-  1. _NameEntryPage: nhập tên đối tượng
-  2. _StreamingPage: hiển thị WaveformView + nút Bắt đầu/Dừng ghi + Kết thúc
+"""Standalone ECG streaming and recording workflow."""
 
-2 page nội bộ dùng QStackedWidget riêng, không lộ ra ngoài. Bên ngoài
-(MainWindow) chỉ cần biết EcgRecordingView có signal back_to_menu.
-"""
-
+import os
 import time
 
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QStackedWidget, QMessageBox
+    QHBoxLayout, QLabel, QLineEdit, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 from ui.waveform_view import WaveformView
+from ui.widgets import Card, StatusBadge, metric_card, page_header, set_variant
 
 
 class _NameEntryPage(QWidget):
@@ -26,42 +18,47 @@ class _NameEntryPage(QWidget):
 
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout()
-        layout.setContentsMargins(60, 80, 60, 80)
-        layout.setSpacing(18)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(64, 46, 64, 42)
+        layout.setSpacing(20)
+        layout.addWidget(page_header(
+            "BIOPAC MP36 · REAL-TIME ACQUISITION",
+            "ECG Recording",
+            "Theo dõi ECG, nhịp tim và ghi đồng thời tín hiệu đã lọc cùng vị trí R-peak.",
+        ))
 
-        title = QLabel("Đo ECG real-time")
-        title.setStyleSheet("font-size: 20px; font-weight: 500;")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        label = QLabel("Tên đối tượng")
-        label.setStyleSheet("font-size: 13px; color: gray;")
-
+        card = Card()
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(24, 22, 24, 24)
+        card_layout.setSpacing(12)
+        heading = QLabel("THÔNG TIN BẢN GHI")
+        heading.setObjectName("sectionTitle")
+        note = QLabel("Tên được dùng trong filename; ký tự không an toàn sẽ tự động được loại bỏ.")
+        note.setObjectName("pageSubtitle")
+        note.setWordWrap(True)
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Nhập tên...")
-        self.name_input.setMinimumHeight(40)
+        self.name_input.setPlaceholderText("Tên hoặc mã đối tượng")
+        card_layout.addWidget(heading)
+        card_layout.addWidget(note)
+        card_layout.addSpacing(8)
+        card_layout.addWidget(QLabel("Tên đối tượng"))
+        card_layout.addWidget(self.name_input)
+        layout.addWidget(card, 1)
 
-        btn_start = QPushButton("Bắt đầu streaming")
-        btn_start.setMinimumHeight(48)
-        btn_start.setStyleSheet("font-size: 14px; font-weight: 500;")
-        btn_start.clicked.connect(self._on_start)
-
-        btn_back = QPushButton("Quay lại")
-        btn_back.setMinimumHeight(36)
+        actions = QHBoxLayout()
+        btn_back = QPushButton("← Về menu")
+        set_variant(btn_back, "ghost")
         btn_back.clicked.connect(self.back_requested.emit)
-
-        layout.addWidget(title)
-        layout.addSpacing(10)
-        layout.addWidget(label)
-        layout.addWidget(self.name_input)
-        layout.addWidget(btn_start)
-        layout.addWidget(btn_back)
-        layout.addStretch()
-        self.setLayout(layout)
+        btn_start = QPushButton("Mở live monitor  →")
+        set_variant(btn_start, "primary")
+        btn_start.clicked.connect(self._on_start)
+        actions.addWidget(btn_back)
+        actions.addStretch()
+        actions.addWidget(btn_start)
+        layout.addLayout(actions)
 
     def _on_start(self):
-        name = self.name_input.text().strip() or "subject"
-        self.start_requested.emit(name)
+        self.start_requested.emit(self.name_input.text().strip() or "subject")
 
     def clear(self):
         self.name_input.clear()
@@ -78,54 +75,75 @@ class _StreamingPage(QWidget):
 
         self._rec_timer = QTimer(self)
         self._rec_timer.timeout.connect(self._update_rec_time)
+        self._saved_timer = QTimer(self)
+        self._saved_timer.setSingleShot(True)
+        self._saved_timer.timeout.connect(self._hide_saved)
         self._rec_t0 = None
         self._subject_name = "subject"
         self._last_data_path = None
         self._last_peak_path = None
+        self._build_ui()
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(16, 12, 16, 12)
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
 
         header = QHBoxLayout()
-        self.lbl_name = QLabel("")
-        self.lbl_name.setStyleSheet("font-size: 15px; font-weight: 500;")
-        self.lbl_status = QLabel("● CONNECTING")
-        self.lbl_status.setStyleSheet("font-size: 12px; color: orange;")
-        header.addWidget(self.lbl_name)
-        header.addStretch()
+        header.addWidget(page_header(
+            "ECG MONITOR · 1000 HZ",
+            "Live acquisition",
+            "Giám sát chất lượng tín hiệu trước và trong khi ghi.",
+        ), 1)
+        self.lbl_status = StatusBadge("● CONNECTING", "warning")
         header.addWidget(self.lbl_status)
+        layout.addLayout(header)
 
-        metrics = QHBoxLayout()
-        self.lbl_bpm = QLabel("---")
-        self.lbl_bpm.setStyleSheet("font-size: 40px; font-weight: 600; color: #c62828;")
-        bpm_unit = QLabel("BPM")
-        bpm_unit.setStyleSheet("font-size: 12px; color: gray; padding-top: 18px;")
-        metrics.addWidget(self.lbl_bpm)
-        metrics.addWidget(bpm_unit)
-        metrics.addStretch()
-        self.lbl_rec_time = QLabel("")
-        self.lbl_rec_time.setStyleSheet("font-size: 13px; color: gray;")
-        metrics.addWidget(self.lbl_rec_time)
+        top = QHBoxLayout()
+        top.setSpacing(12)
+        subject_card = Card(metric=True)
+        subject_layout = QVBoxLayout(subject_card)
+        subject_layout.setContentsMargins(14, 12, 14, 12)
+        subject_label = QLabel("ĐỐI TƯỢNG")
+        subject_label.setObjectName("eyebrow")
+        self.lbl_name = QLabel("")
+        self.lbl_name.setObjectName("sectionTitle")
+        subject_layout.addWidget(subject_label)
+        subject_layout.addWidget(self.lbl_name)
+        bpm_card, self.lbl_bpm = metric_card("Nhịp tim", "—", "BPM", compact=True)
+        rec_card, self.lbl_rec_time = metric_card("Recording", "IDLE", "", compact=True)
+        top.addWidget(subject_card, 2)
+        top.addWidget(bpm_card, 1)
+        top.addWidget(rec_card, 1)
+        layout.addLayout(top)
+
+        self.lbl_saved = QLabel("")
+        self.lbl_saved.setObjectName("successBanner")
+        self.lbl_saved.setWordWrap(True)
+        self.lbl_saved.hide()
+        layout.addWidget(self.lbl_saved)
+
+        plot_card = Card(object_name="plotCard")
+        plot_layout = QVBoxLayout(plot_card)
+        plot_layout.setContentsMargins(10, 10, 10, 10)
+        plot_layout.addWidget(self.waveform)
+        layout.addWidget(plot_card, 1)
 
         controls = QHBoxLayout()
-        self.btn_rec = QPushButton("⏺ Bắt đầu ghi")
-        self.btn_rec.setMinimumHeight(44)
-        self.btn_rec.clicked.connect(self._toggle_recording)
-        btn_finish = QPushButton("Kết thúc, quay về menu")
-        btn_finish.setMinimumHeight(44)
+        btn_finish = QPushButton("← Kết thúc và về menu")
+        set_variant(btn_finish, "ghost")
         btn_finish.clicked.connect(self._on_finish)
-        controls.addWidget(self.btn_rec)
+        self.btn_rec = QPushButton("● Bắt đầu ghi")
+        set_variant(self.btn_rec, "primary")
+        self.btn_rec.clicked.connect(self._toggle_recording)
         controls.addWidget(btn_finish)
-
-        layout.addLayout(header)
-        layout.addLayout(metrics)
-        layout.addWidget(self.waveform, stretch=1)
+        controls.addStretch()
+        controls.addWidget(self.btn_rec)
         layout.addLayout(controls)
-        self.setLayout(layout)
 
     def start_streaming(self, subject_name: str):
         self._subject_name = subject_name
-        self.lbl_name.setText(f"Đối tượng: {subject_name}")
+        self.lbl_name.setText(subject_name)
         self.waveform.start()
 
     def _on_hr_updated(self, bpm: float):
@@ -133,21 +151,19 @@ class _StreamingPage(QWidget):
 
     def _on_status_changed(self, is_connected: bool, is_demo: bool):
         if is_demo:
-            self.lbl_status.setText("● DEMO")
-            self.lbl_status.setStyleSheet("font-size: 12px; color: #e65100;")
+            self.lbl_status.set_status("● DEMO SIGNAL", "demo")
         elif is_connected:
-            self.lbl_status.setText("● LIVE")
-            self.lbl_status.setStyleSheet("font-size: 12px; color: #2e7d32;")
+            self.lbl_status.set_status("● LIVE · MP36", "live")
         else:
-            self.lbl_status.setText("● ERROR")
-            self.lbl_status.setStyleSheet("font-size: 12px; color: #e53935;")
+            self.lbl_status.set_status("● SIGNAL ERROR", "error")
 
     def _toggle_recording(self):
         if self.waveform.is_recording:
             self.waveform.stop_recording()
             self._rec_timer.stop()
-            self.btn_rec.setText("⏺ Bắt đầu ghi")
-            self.lbl_rec_time.setText("")
+            self.btn_rec.setText("● Bắt đầu ghi")
+            set_variant(self.btn_rec, "primary")
+            self.lbl_rec_time.setText("IDLE")
             self._notify_saved()
         else:
             data_path, peak_path = self.waveform.start_recording(self._subject_name)
@@ -155,47 +171,49 @@ class _StreamingPage(QWidget):
             self._last_peak_path = peak_path
             self._rec_t0 = time.perf_counter()
             self._rec_timer.start(1000)
-            self.btn_rec.setText("⏹ Dừng ghi")
+            self.btn_rec.setText("■ Dừng và lưu")
+            set_variant(self.btn_rec, "danger")
+            self.lbl_rec_time.setText("REC 00:00")
             print(f"[REC] Bat dau ghi: {data_path}")
 
     def _notify_saved(self):
-        """Bao cho nguoi van hanh biet da luu xong va luu o dau."""
         if not self._last_data_path:
             return
-        QMessageBox.information(
-            self, "Đã lưu bản ghi",
-            "Đã lưu 2 file vào thư mục recordings/:\n\n"
-            f"• Tín hiệu ECG:\n{self._last_data_path}\n\n"
-            f"• Vị trí R-peak:\n{self._last_peak_path}",
+        self.lbl_saved.setText(
+            "✓ Đã lưu bản ghi vào recordings/  ·  "
+            f"{os.path.basename(self._last_data_path)}  ·  "
+            f"{os.path.basename(self._last_peak_path or '')}"
         )
+        self.lbl_saved.show()
+        self._saved_timer.start(8000)
+
+    def _hide_saved(self):
+        self.lbl_saved.hide()
 
     def _update_rec_time(self):
         if self._rec_t0 is None:
             return
-        elapsed = int(time.perf_counter() - self._rec_t0)
-        m, s = divmod(elapsed, 60)
-        self.lbl_rec_time.setText(f"● REC {m:02d}:{s:02d}")
+        minutes, seconds = divmod(int(time.perf_counter() - self._rec_t0), 60)
+        self.lbl_rec_time.setText(f"REC {minutes:02d}:{seconds:02d}")
 
     def _on_finish(self):
-        was_recording = self.waveform.is_recording
-        if was_recording:
+        if self.waveform.is_recording:
             self.waveform.stop_recording()
         self._rec_timer.stop()
         self.waveform.stop()
-        if was_recording:
-            self._notify_saved()
         self.back_requested.emit()
 
     def reset(self):
-        """Gọi khi rời màn hình, đảm bảo lần sau vào lại sạch."""
-        self.lbl_bpm.setText("---")
-        self.lbl_status.setText("● CONNECTING")
-        self.lbl_rec_time.setText("")
-        self.btn_rec.setText("⏺ Bắt đầu ghi")
+        self._saved_timer.stop()
+        self.lbl_saved.hide()
+        self.lbl_bpm.setText("—")
+        self.lbl_status.set_status("● CONNECTING", "warning")
+        self.lbl_rec_time.setText("IDLE")
+        self.btn_rec.setText("● Bắt đầu ghi")
+        set_variant(self.btn_rec, "primary")
 
 
 class EcgRecordingView(QWidget):
-    # MainWindow lắng nghe signal này để quay lại ModeSelectView
     back_to_menu = pyqtSignal()
 
     def __init__(self):
@@ -203,18 +221,14 @@ class EcgRecordingView(QWidget):
         self.stack = QStackedWidget()
         self.name_page = _NameEntryPage()
         self.streaming_page = _StreamingPage()
-
         self.name_page.start_requested.connect(self._start_streaming)
         self.name_page.back_requested.connect(self.back_to_menu.emit)
         self.streaming_page.back_requested.connect(self._on_streaming_finished)
-
         self.stack.addWidget(self.name_page)
         self.stack.addWidget(self.streaming_page)
-
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.stack)
-        self.setLayout(layout)
 
     def _start_streaming(self, subject_name: str):
         self.stack.setCurrentWidget(self.streaming_page)
@@ -227,5 +241,4 @@ class EcgRecordingView(QWidget):
         self.back_to_menu.emit()
 
     def reset(self):
-        """MainWindow gọi khi cần đảm bảo quay vào lại từ đầu (page nhập tên)."""
         self.stack.setCurrentWidget(self.name_page)

@@ -233,6 +233,11 @@ class AcquisitionWorker:
     def start(self, connect_timeout_sec: float = 4.0):
         """Thử kết nối MP36 thật. Nếu không có DLL hoặc kết nối thất bại
         trong connect_timeout_sec giây -> tự động chuyển sang Demo mode."""
+        # Worker duoc tai su dung khi do lai HR_rest / doi patient. Don sach
+        # process lan truoc truoc khi tao MP36 process moi.
+        self.stop()
+        self.is_demo = False
+        self._demo_src = None
         if not os.path.exists(self.dll_path):
             print(f"[INFO] mpdev.dll not found tai {self.dll_path} -> DEMO mode", file=sys.stderr)
             self.is_demo = True
@@ -356,14 +361,34 @@ class AcquisitionWorker:
 
     def stop(self):
         self.stop_recording()
-        if not self.is_demo and self._proc is not None:
+        if self._proc is not None:
             try:
-                self._cmd_q.put('STOP')
+                if self._proc.is_alive() and self._cmd_q is not None:
+                    self._cmd_q.put('STOP')
                 self._proc.join(timeout=2.0)
                 if self._proc.is_alive():
                     self._proc.terminate()
+                    self._proc.join(timeout=1.0)
             except Exception:
                 pass
+        self._proc = None
+
+        for queue in (self._data_q, self._cmd_q, self._rec_q):
+            if queue is not None:
+                try:
+                    queue.close()
+                    queue.join_thread()
+                except Exception:
+                    pass
+        self._data_q = self._cmd_q = self._rec_q = None
+
+        if self._manager is not None:
+            try:
+                self._manager.shutdown()
+            except Exception:
+                pass
+        self._manager = None
+        self._status = None
 
     @property
     def is_connected(self) -> bool:

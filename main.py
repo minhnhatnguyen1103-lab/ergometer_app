@@ -10,42 +10,13 @@ import sys
 from PyQt6.QtWidgets import QApplication
 
 from ui.main_window import MainWindow
+from ui.theme import application_stylesheet
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyleSheet("""
-        QWidget { background-color: white; color: #212121; }
-        QPushButton {
-            background-color: #f0f0f0;
-            border: 1px solid #bdbdbd;
-            border-radius: 4px;
-            padding: 4px 10px;
-        }
-        QPushButton:hover { background-color: #e0e0e0; }
-        QPushButton:pressed { background-color: #d0d0d0; }
-        QPushButton:disabled { background-color: #f5f5f5; color: #9e9e9e; border-color: #dddddd; }
-        QLineEdit {
-            background-color: white;
-            border: 1px solid #bdbdbd;
-            border-radius: 3px;
-            padding: 3px 6px;
-        }
-        /* KHONG style QComboBox/QSpinBox bang border+padding: lam Qt chuyen
-           sang che do ve-bang-stylesheet khien mui ten tang/giam mat chuc nang
-           va con tro thanh I-beam. De native, van tu trang tren nen trang. */
-        QCheckBox::indicator {
-            width: 16px;
-            height: 16px;
-            border: 1px solid #9e9e9e;
-            border-radius: 3px;
-            background-color: white;
-        }
-        QCheckBox::indicator:checked {
-            background-color: #1565c0;
-            border-color: #1565c0;
-        }
-    """)
+    app.setStyle("Fusion")
+    app.setStyleSheet(application_stylesheet())
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

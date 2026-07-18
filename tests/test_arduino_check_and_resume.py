@@ -25,7 +25,8 @@ from PyQt6.QtCore import QTimer
 from ui.main_window import MainWindow
 from data.pending_session_store import list_pending, delete_pending
 
-TEST_DURATION_SEC = 3
+# Phai dai hon Pan-Tompkins warmup (~5s) de co it nhat mot BPM hop le.
+TEST_DURATION_SEC = 7
 POLL_INTERVAL_MS = 150
 MEASURE_TIMEOUT_MS = TEST_DURATION_SEC * 1000 + 6000
 
